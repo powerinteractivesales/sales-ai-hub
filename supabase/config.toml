@@ -1,1 +1,13 @@
 project_id = "gwfkrtaqrgfosaqfcitq"
+
+[functions.auth]
+verify_jwt = false
+
+[functions.dashboard]
+verify_jwt = false
+
+[functions.leads]
+verify_jwt = false
+
+[functions.refresh]
+verify_jwt = false
