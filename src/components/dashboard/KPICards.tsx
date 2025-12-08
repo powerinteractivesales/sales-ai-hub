@@ -1,94 +1,246 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import type { DashboardSummary } from '@/types/dashboard';
-import { Users, Clock, TrendingUp, AlertCircle } from 'lucide-react';
+import {
+  Users, TrendingUp, MessageCircle, Target,
+  XCircle, Award, BarChart3, ArrowUpRight, ArrowDownRight
+} from 'lucide-react';
 
 interface KPICardsProps {
   summary: DashboardSummary;
 }
 
-const statusColors: Record<string, string> = {
-  'Warm Lead': 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
-  'Cold Lead': 'bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-400',
-  'Qualified Lead': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
-  'Hot Lead': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-};
+// Modern minimal metric card
+function MetricCard({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+  accent = 'default',
+  trend
+}: {
+  title: string;
+  value: string | number;
+  subtitle: string;
+  icon: any;
+  accent?: 'default' | 'success' | 'warning' | 'danger';
+  trend?: 'up' | 'down';
+}) {
+  const accentColors = {
+    default: 'text-slate-600',
+    success: 'text-emerald-600',
+    warning: 'text-amber-600',
+    danger: 'text-rose-600',
+  };
+
+  return (
+    <Card className="group border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-slate-300 dark:hover:border-slate-700 transition-colors duration-200">
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <Icon className={`w-4 h-4 ${accentColors[accent]} opacity-70`} />
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{title}</p>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <h3 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">{value}</h3>
+              {trend && (
+                <span className={`flex items-center text-xs font-medium ${trend === 'up' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {trend === 'up' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{subtitle}</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Activity card - simpler, cleaner
+function ActivityCard({
+  value,
+  label,
+  sublabel,
+  urgent = false
+}: {
+  value: number;
+  label: string;
+  sublabel?: string;
+  urgent?: boolean;
+}) {
+  return (
+    <Card className={`border bg-white dark:bg-slate-950 transition-colors duration-200 ${
+      urgent
+        ? 'border-rose-200 dark:border-rose-900/50'
+        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+    }`}>
+      <CardContent className="p-4">
+        <div className={`text-2xl font-semibold mb-1 ${urgent ? 'text-rose-600' : 'text-slate-900 dark:text-slate-100'}`}>
+          {value}
+        </div>
+        <p className="text-sm text-slate-600 dark:text-slate-400">{label}</p>
+        {sublabel && (
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{sublabel}</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export function KPICards({ summary }: KPICardsProps) {
+  const pipelineData = Object.entries(summary.by_master_status)
+    .sort((a, b) => b[1] - a[1]);
+
+  const maxCount = Math.max(...pipelineData.map(([, count]) => count), 1);
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {/* Total Leads */}
-      <Card className="border-border/50">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Total Leads</CardTitle>
-          <Users className="h-4 w-4 text-primary" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold">{summary.total_leads}</div>
-          <p className="text-xs text-muted-foreground mt-1">
-            In pipeline
-          </p>
-        </CardContent>
-      </Card>
+    <div className="space-y-8">
+      {/* Primary Metrics */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard
+          title="Total Pipeline"
+          value={summary.total_leads}
+          subtitle={`${summary.by_lead_source?.Meta || 0} Meta · ${summary.by_lead_source?.Website || 0} Web`}
+          icon={Users}
+        />
 
-      {/* By Master Status */}
-      <Card className="border-border/50">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">By Stage</CardTitle>
-          <TrendingUp className="h-4 w-4 text-primary" />
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-1.5">
-            {Object.entries(summary.by_master_status).map(([status, count]) => (
-              <Badge 
-                key={status} 
-                variant="secondary"
-                className={statusColors[status] || 'bg-secondary text-secondary-foreground'}
-              >
-                {status}: {count}
-              </Badge>
-            ))}
-            {Object.keys(summary.by_master_status).length === 0 && (
-              <span className="text-sm text-muted-foreground">No data</span>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+        <MetricCard
+          title="Hot Opportunities"
+          value={(summary.hot_leads_count || 0) + (summary.qualified_leads_count || 0)}
+          subtitle={`${summary.hot_leads_count || 0} hot · ${summary.qualified_leads_count || 0} qualified`}
+          icon={Target}
+          accent="warning"
+          trend="up"
+        />
 
-      {/* Follow-ups Due */}
-      <Card className="border-border/50">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Follow-ups Due</CardTitle>
-          <AlertCircle className="h-4 w-4 text-primary" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold">
-            {summary.followups_due_now}
-            {summary.followups_due_today > 0 && (
-              <span className="text-lg font-normal text-muted-foreground ml-2">
-                (+{summary.followups_due_today} today)
+        <MetricCard
+          title="Conversion Rate"
+          value={`${summary.conversion_rate || 0}%`}
+          subtitle="To hot/qualified stage"
+          icon={TrendingUp}
+          accent="success"
+          trend={summary.conversion_rate > 5 ? 'up' : undefined}
+        />
+
+        <MetricCard
+          title="Response Rate"
+          value={`${summary.response_rate || 0}%`}
+          subtitle={`${summary.total_leads_with_replies || 0} of ${summary.total_leads} replied`}
+          icon={MessageCircle}
+        />
+      </div>
+
+      {/* Activity Row */}
+      <div>
+        <h2 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-3 uppercase tracking-wide">Activity</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <ActivityCard
+            value={summary.followups_due_now || 0}
+            label="Due now"
+            sublabel={`+${summary.followups_due_this_week || 0} this week`}
+            urgent={(summary.followups_due_now || 0) > 0}
+          />
+          <ActivityCard
+            value={summary.new_leads_last_24h || 0}
+            label="New today"
+          />
+          <ActivityCard
+            value={summary.new_leads_last_7_days || 0}
+            label="Last 7 days"
+          />
+          <ActivityCard
+            value={summary.new_leads_last_30_days || 0}
+            label="Last 30 days"
+          />
+        </div>
+      </div>
+
+      {/* Analytics Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Lead Quality Scores */}
+        <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <Award className="w-4 h-4 text-slate-400" />
+                <h3 className="font-medium text-slate-900 dark:text-slate-100">Lead Quality</h3>
+              </div>
+              <span className="text-xs text-slate-400 font-medium">
+                {summary.total_meta_leads || 0} Meta leads
               </span>
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Requiring attention
-          </p>
-        </CardContent>
-      </Card>
+            </div>
 
-      {/* New Leads */}
-      <Card className="border-border/50">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">New (24h)</CardTitle>
-          <Clock className="h-4 w-4 text-primary" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold">{summary.new_leads_last_24h}</div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Last 24 hours
-          </p>
-        </CardContent>
-      </Card>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+              {[
+                { label: 'Overall', value: summary.avg_lead_score || 0 },
+                { label: 'Persona Fit', value: summary.avg_persona_fit || 0 },
+                { label: 'Activation', value: summary.avg_activation_fit || 0 },
+                { label: 'Intent', value: summary.avg_intent_score || 0 },
+              ].map((metric) => (
+                <div key={metric.label}>
+                  <div className="flex justify-between items-baseline mb-1.5">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">{metric.label}</span>
+                    <span className="text-lg font-semibold text-slate-900 dark:text-slate-100">{metric.value}</span>
+                  </div>
+                  <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-slate-900 dark:bg-slate-100 rounded-full transition-all duration-500"
+                      style={{ width: `${(metric.value / 10) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Pipeline Distribution */}
+        <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2 mb-5">
+              <BarChart3 className="w-4 h-4 text-slate-400" />
+              <h3 className="font-medium text-slate-900 dark:text-slate-100">Pipeline Distribution</h3>
+            </div>
+
+            <div className="space-y-3">
+              {pipelineData.map(([status, count]) => (
+                <div key={status} className="flex items-center gap-3">
+                  <span className="text-sm text-slate-600 dark:text-slate-400 w-28 truncate">{status}</span>
+                  <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-slate-400 dark:bg-slate-500 rounded-full transition-all duration-500"
+                      style={{ width: `${(count / maxCount) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium text-slate-900 dark:text-slate-100 w-8 text-right">{count}</span>
+                </div>
+              ))}
+
+              {pipelineData.length === 0 && (
+                <div className="text-center py-6 text-slate-400">No data available</div>
+              )}
+
+              {/* Dead leads */}
+              <div className="flex items-center gap-3 pt-3 mt-3 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-1.5 w-28">
+                  <XCircle className="w-3.5 h-3.5 text-rose-500" />
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Dead</span>
+                </div>
+                <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-rose-400 dark:bg-rose-500 rounded-full transition-all duration-500"
+                    style={{ width: `${((summary.dead_leads_count || 0) / maxCount) * 100}%` }}
+                  />
+                </div>
+                <span className="text-sm font-medium text-slate-900 dark:text-slate-100 w-8 text-right">
+                  {summary.dead_leads_count || 0}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

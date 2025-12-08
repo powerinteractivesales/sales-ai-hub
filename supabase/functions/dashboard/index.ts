@@ -12,9 +12,35 @@ const DEFAULT_PAYLOAD = {
     total_leads: 0,
     by_status: {},
     by_master_status: {},
+    by_country: {},
+    by_lead_source: {},
+
+    // Follow-up metrics
     followups_due_now: 0,
-    followups_due_today: 0,
+    followups_due_this_week: 0,
+
+    // New leads tracking
     new_leads_last_24h: 0,
+    new_leads_last_7_days: 0,
+    new_leads_last_30_days: 0,
+
+    // Engagement metrics
+    total_leads_with_replies: 0,
+    response_rate: 0,
+
+    // Lead quality metrics
+    hot_leads_count: 0,
+    qualified_leads_count: 0,
+    dead_leads_count: 0,
+    conversion_rate: 0,
+    dead_lead_rate: 0,
+
+    // Score metrics (Meta leads only)
+    avg_lead_score: 0,
+    avg_persona_fit: 0,
+    avg_activation_fit: 0,
+    avg_intent_score: 0,
+    total_meta_leads: 0,
   },
   leads: [],
 };

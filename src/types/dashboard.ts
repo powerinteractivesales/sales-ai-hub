@@ -4,32 +4,61 @@ export interface DashboardSummary {
   total_leads: number;
   by_status: Record<string, number>;
   by_master_status: Record<string, number>;
+  by_country: Record<string, number>;
+  by_lead_source: Record<string, number>;
+
+  // Follow-up metrics
   followups_due_now: number;
-  followups_due_today: number;
+  followups_due_this_week: number;
+
+  // New leads tracking
   new_leads_last_24h: number;
+  new_leads_last_7_days: number;
+  new_leads_last_30_days: number;
+
+  // Engagement metrics
+  total_leads_with_replies: number;
+  response_rate: number;
+
+  // Lead quality metrics
+  hot_leads_count: number;
+  qualified_leads_count: number;
+  dead_leads_count: number;
+  conversion_rate: number;
+  dead_lead_rate: number;
+
+  // Score metrics (Meta leads only)
+  avg_lead_score: number;
+  avg_persona_fit: number;
+  avg_activation_fit: number;
+  avg_intent_score: number;
+  total_meta_leads: number;
 }
 
 export interface LeadRow {
-  id: number;
-  meta_lead_id: string;
+  id: number | string; // number for Meta leads, UUID string for Website leads
+  meta_lead_id: string | null;
   name: string;
   email: string;
-  company: string;
-  phone: string;
-  country: string;
+  company: string | null;
+  phone: string | null;
+  country: string | null;
   status: string;
   master_status: string;
-  average_score: number;
-  persona_fit: number;
-  activation_fit: number;
-  intent_score: number;
-  ad_id: number;
-  ad_name: string;
-  where: string;
-  what_matters: string;
-  experience_with_technology: string;
-  last_contact_timestamp: string;
-  next_followup_timestamp: string;
+  average_score: number | null;
+  persona_fit: number | null;
+  activation_fit: number | null;
+  intent_score: number | null;
+  ad_id: number | null;
+  ad_name: string | null;
+  where: string | null;
+  what_matters: string | null;
+  experience_with_technology: string | null;
+  last_contact_timestamp: string | null;
+  next_followup_timestamp: string | null;
+  lead_source?: string; // 'Meta' or 'Website'
+  initial_message?: string | null; // For website leads
+  assigned_to?: string | null;
 }
 
 export interface DashboardPayload {

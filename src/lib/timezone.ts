@@ -1,16 +1,14 @@
 // Timezone utilities for Asia/Dubai display
-import { format, parseISO } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 
-const DUBAI_OFFSET_HOURS = 4; // UTC+4
+const DUBAI_TIMEZONE = 'Asia/Dubai'; // UTC+4
 
 export function formatInDubaiTime(isoString: string | null | undefined, formatStr: string = 'MMM d, yyyy h:mm a'): string {
   if (!isoString) return '—';
-  
+
   try {
-    const date = parseISO(isoString);
-    // Add 4 hours to convert from UTC to Dubai time
-    const dubaiDate = new Date(date.getTime() + DUBAI_OFFSET_HOURS * 60 * 60 * 1000);
-    return format(dubaiDate, formatStr) + ' (Dubai)';
+    // Use date-fns-tz to properly convert UTC to Dubai time
+    return formatInTimeZone(new Date(isoString), DUBAI_TIMEZONE, formatStr);
   } catch {
     return '—';
   }
@@ -18,9 +16,9 @@ export function formatInDubaiTime(isoString: string | null | undefined, formatSt
 
 export function formatRelativeTime(isoString: string | null | undefined): string {
   if (!isoString) return '—';
-  
+
   try {
-    const date = parseISO(isoString);
+    const date = new Date(isoString);
     const now = new Date();
     const diffMs = date.getTime() - now.getTime();
     const diffHours = Math.round(diffMs / (1000 * 60 * 60));

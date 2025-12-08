@@ -17,9 +17,35 @@ const DEFAULT_SUMMARY: DashboardSummary = {
   total_leads: 0,
   by_status: {},
   by_master_status: {},
+  by_country: {},
+  by_lead_source: {},
+
+  // Follow-up metrics
   followups_due_now: 0,
-  followups_due_today: 0,
+  followups_due_this_week: 0,
+
+  // New leads tracking
   new_leads_last_24h: 0,
+  new_leads_last_7_days: 0,
+  new_leads_last_30_days: 0,
+
+  // Engagement metrics
+  total_leads_with_replies: 0,
+  response_rate: 0,
+
+  // Lead quality metrics
+  hot_leads_count: 0,
+  qualified_leads_count: 0,
+  dead_leads_count: 0,
+  conversion_rate: 0,
+  dead_lead_rate: 0,
+
+  // Score metrics (Meta leads only)
+  avg_lead_score: 0,
+  avg_persona_fit: 0,
+  avg_activation_fit: 0,
+  avg_intent_score: 0,
+  total_meta_leads: 0,
 };
 
 export default function Dashboard() {
@@ -37,6 +63,15 @@ export default function Dashboard() {
   const [masterStatusFilter, setMasterStatusFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [countryFilter, setCountryFilter] = useState('all');
+  const [assignedToFilter, setAssignedToFilter] = useState('all');
+
+  // Sorting
+  const [sortField, setSortField] = useState<'last_contact' | 'next_followup' | 'score' | 'name' | 'assigned_to'>('last_contact');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Auth check
   useEffect(() => {
@@ -87,28 +122,79 @@ export default function Dashboard() {
   };
 
   // Extract unique filter values
-  const { masterStatuses, statuses, countries } = useMemo(() => {
+  const { masterStatuses, statuses, countries, assignedTos } = useMemo(() => {
     const leads = payload?.leads || [];
     return {
       masterStatuses: [...new Set(leads.map(l => l.master_status).filter(Boolean))],
       statuses: [...new Set(leads.map(l => l.status).filter(Boolean))],
       countries: [...new Set(leads.map(l => l.country).filter(Boolean))],
+      assignedTos: [...new Set(leads.map(l => l.assigned_to).filter(Boolean))],
     };
   }, [payload?.leads]);
 
-  // Filter leads
-  const filteredLeads = useMemo(() => {
+  // Filter, sort, and paginate leads
+  const { sortedLeads, paginatedLeads, totalPages } = useMemo(() => {
     const leads = payload?.leads || [];
-    return leads.filter(lead => {
-      const matchesSearch = !searchQuery || 
+
+    // Filter
+    const filtered = leads.filter(lead => {
+      const matchesSearch = !searchQuery ||
         lead.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         lead.email?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesMasterStatus = masterStatusFilter === 'all' || lead.master_status === masterStatusFilter;
       const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
       const matchesCountry = countryFilter === 'all' || lead.country === countryFilter;
-      return matchesSearch && matchesMasterStatus && matchesStatus && matchesCountry;
+      const matchesAssignedTo = assignedToFilter === 'all' || lead.assigned_to === assignedToFilter;
+      return matchesSearch && matchesMasterStatus && matchesStatus && matchesCountry && matchesAssignedTo;
     });
-  }, [payload?.leads, searchQuery, masterStatusFilter, statusFilter, countryFilter]);
+
+    // Sort
+    const sorted = [...filtered].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      switch (sortField) {
+        case 'last_contact':
+          aVal = a.last_contact_timestamp ? new Date(a.last_contact_timestamp).getTime() : 0;
+          bVal = b.last_contact_timestamp ? new Date(b.last_contact_timestamp).getTime() : 0;
+          break;
+        case 'next_followup':
+          aVal = a.next_followup_timestamp ? new Date(a.next_followup_timestamp).getTime() : Infinity;
+          bVal = b.next_followup_timestamp ? new Date(b.next_followup_timestamp).getTime() : Infinity;
+          break;
+        case 'score':
+          aVal = a.average_score ?? 0;
+          bVal = b.average_score ?? 0;
+          break;
+        case 'name':
+          aVal = a.name?.toLowerCase() || '';
+          bVal = b.name?.toLowerCase() || '';
+          break;
+        case 'assigned_to':
+          aVal = a.assigned_to?.toLowerCase() || '';
+          bVal = b.assigned_to?.toLowerCase() || '';
+          break;
+        default:
+          return 0;
+      }
+
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    // Paginate
+    const total = Math.ceil(sorted.length / pageSize);
+    const startIdx = (currentPage - 1) * pageSize;
+    const paginated = sorted.slice(startIdx, startIdx + pageSize);
+
+    return { sortedLeads: sorted, paginatedLeads: paginated, totalPages: total };
+  }, [payload?.leads, searchQuery, masterStatusFilter, statusFilter, countryFilter, assignedToFilter, sortField, sortDirection, currentPage, pageSize]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, masterStatusFilter, statusFilter, countryFilter, assignedToFilter]);
 
   const summary = payload?.summary || DEFAULT_SUMMARY;
 
@@ -145,6 +231,9 @@ export default function Dashboard() {
           masterStatuses={masterStatuses}
           statuses={statuses}
           countries={countries}
+          assignedTos={assignedTos}
+          assignedToFilter={assignedToFilter}
+          onAssignedToChange={setAssignedToFilter}
         />
 
         {/* Main Content Area */}
@@ -157,12 +246,12 @@ export default function Dashboard() {
                   [...Array(3)].map((_, i) => (
                     <Skeleton key={i} className="h-[160px] rounded-lg" />
                   ))
-                ) : filteredLeads.length === 0 ? (
+                ) : paginatedLeads.length === 0 ? (
                   <div className="text-center py-12 bg-card rounded-lg border border-border/50">
                     <p className="text-muted-foreground">No leads found matching your filters.</p>
                   </div>
                 ) : (
-                  filteredLeads.map(lead => (
+                  paginatedLeads.map((lead: LeadRow) => (
                     <MobileLeadCard
                       key={lead.id}
                       lead={lead}
@@ -174,11 +263,66 @@ export default function Dashboard() {
               </div>
             ) : (
               <LeadTable
-                leads={filteredLeads}
+                leads={paginatedLeads}
                 selectedLeadId={selectedLead?.id || null}
                 onSelectLead={setSelectedLead}
                 isLoading={isLoading}
+                sortField={sortField}
+                sortDirection={sortDirection}
+                onSort={(field, direction) => {
+                  setSortField(field);
+                  setSortDirection(direction);
+                }}
               />
+            )}
+
+            {/* Pagination Controls */}
+            {!isLoading && sortedLeads.length > 0 && (
+              <div className="mt-4 flex items-center justify-between bg-card rounded-lg border border-border/50 p-4">
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-muted-foreground">
+                    Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, sortedLeads.length)} of {sortedLeads.length} leads
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="pageSize" className="text-sm text-muted-foreground">
+                      Per page:
+                    </label>
+                    <select
+                      id="pageSize"
+                      value={pageSize}
+                      onChange={(e) => {
+                        setPageSize(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="px-3 py-1 rounded border border-input bg-background text-sm"
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 rounded border border-input bg-background text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 rounded border border-input bg-background text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 

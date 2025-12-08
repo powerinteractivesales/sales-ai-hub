@@ -34,6 +34,11 @@ export function MobileLeadCard({ lead, isSelected, onClick }: MobileLeadCardProp
             {lead.company && (
               <p className="text-sm text-muted-foreground">{lead.company}</p>
             )}
+            {lead.assigned_to && (
+              <p className="text-sm text-muted-foreground">
+                Assigned: {lead.assigned_to}
+              </p>
+            )}
           </div>
           <div className="text-right shrink-0">
             <div className="text-lg font-bold text-primary">
@@ -44,7 +49,7 @@ export function MobileLeadCard({ lead, isSelected, onClick }: MobileLeadCardProp
         </div>
 
         <div className="flex items-center gap-2 mt-3">
-          <Badge 
+          <Badge
             variant="secondary"
             className={masterStatusColors[lead.master_status] || ''}
           >
@@ -53,6 +58,18 @@ export function MobileLeadCard({ lead, isSelected, onClick }: MobileLeadCardProp
           <Badge variant="outline" className="text-xs">
             {lead.status}
           </Badge>
+          {lead.lead_source && (
+            <Badge
+              variant="outline"
+              className={`text-xs ${
+                lead.lead_source === 'Website'
+                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                  : 'bg-purple-50 text-purple-700 border-purple-200'
+              }`}
+            >
+              {lead.lead_source}
+            </Badge>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-2 mt-3 text-xs text-muted-foreground">

@@ -14,6 +14,9 @@ interface LeadFiltersProps {
   masterStatuses: string[];
   statuses: string[];
   countries: string[];
+  assignedTos: string[];
+  assignedToFilter: string;
+  onAssignedToChange: (value: string) => void;
 }
 
 export function LeadFilters({
@@ -28,6 +31,9 @@ export function LeadFilters({
   masterStatuses,
   statuses,
   countries,
+  assignedTos,
+  assignedToFilter,
+  onAssignedToChange,
 }: LeadFiltersProps) {
   return (
     <div className="flex flex-col sm:flex-row gap-3">
@@ -83,6 +89,21 @@ export function LeadFilters({
           {countries.map((country) => (
             <SelectItem key={country} value={country}>
               {country}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {/* Assigned To Filter */}
+      <Select value={assignedToFilter} onValueChange={onAssignedToChange}>
+        <SelectTrigger className="w-full sm:w-[180px]">
+          <SelectValue placeholder="Assigned to" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Assigned</SelectItem>
+          {assignedTos.map((assignedTo) => (
+            <SelectItem key={assignedTo} value={assignedTo}>
+              {assignedTo}
             </SelectItem>
           ))}
         </SelectContent>

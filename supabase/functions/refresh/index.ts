@@ -78,8 +78,17 @@ serve(async (req) => {
       );
     }
 
-    const newPayload = await n8nResponse.json();
-    console.log('n8n response received');
+    let newPayload = await n8nResponse.json();
+    console.log('n8n response received:', JSON.stringify(newPayload).substring(0, 500));
+
+    // n8n returns an array, extract the first element
+    if (Array.isArray(newPayload) && newPayload.length > 0) {
+      console.log('Extracting first element from array, array length:', newPayload.length);
+      newPayload = newPayload[0];
+      console.log('After extraction, summary keys:', Object.keys(newPayload?.summary || {}));
+    } else {
+      console.log('newPayload is not an array, type:', typeof newPayload);
+    }
 
     // Create Supabase client with service role key
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;

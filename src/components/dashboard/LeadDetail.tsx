@@ -105,20 +105,28 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
                 <span>{lead.country}</span>
               </div>
             )}
+            {lead.assigned_to && (
+              <div className="text-sm">
+                <span className="font-medium text-muted-foreground">Assigned To: </span>
+                <span>{lead.assigned_to}</span>
+              </div>
+            )}
           </div>
 
           <Separator />
 
           {/* Scores */}
-          <div>
-            <h3 className="text-sm font-semibold mb-3">Lead Scores</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <ScoreCard label="Persona Fit" value={lead.persona_fit} />
-              <ScoreCard label="Activation Fit" value={lead.activation_fit} />
-              <ScoreCard label="Intent Score" value={lead.intent_score} />
-              <ScoreCard label="Average" value={lead.average_score} highlight />
+          {(lead.persona_fit !== null || lead.activation_fit !== null || lead.intent_score !== null || lead.average_score !== null) && (
+            <div>
+              <h3 className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-4">Scores</h3>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                <ScoreCard label="Persona Fit" value={lead.persona_fit} />
+                <ScoreCard label="Activation" value={lead.activation_fit} />
+                <ScoreCard label="Intent" value={lead.intent_score} />
+                <ScoreCard label="Average" value={lead.average_score} />
+              </div>
             </div>
-          </div>
+          )}
 
           <Separator />
 
@@ -205,15 +213,21 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   );
 }
 
-function ScoreCard({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
-  const score = value || 0;
-  const color = score >= 7 ? 'text-emerald-600' : score >= 4 ? 'text-amber-600' : 'text-slate-500';
+function ScoreCard({ label, value }: { label: string; value: number | null }) {
+  const score = value ?? 0;
+  const percentage = (score / 10) * 100;
 
   return (
-    <div className={`p-3 rounded-lg ${highlight ? 'bg-primary/10' : 'bg-muted/50'}`}>
-      <div className="text-xs text-muted-foreground mb-1">{label}</div>
-      <div className={`text-lg font-bold ${highlight ? 'text-primary' : color}`}>
-        {score.toFixed(1)}
+    <div className="space-y-1.5">
+      <div className="flex items-baseline justify-between">
+        <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
+        <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{score.toFixed(1)}</span>
+      </div>
+      <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-slate-900 dark:bg-slate-100 rounded-full transition-all duration-300"
+          style={{ width: `${percentage}%` }}
+        />
       </div>
     </div>
   );

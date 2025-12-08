@@ -4,12 +4,19 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { LeadRow } from '@/types/dashboard';
 import { formatInDubaiTime } from '@/lib/timezone';
 import { cn } from '@/lib/utils';
+import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+
+type SortField = 'last_contact' | 'next_followup' | 'score' | 'name' | 'assigned_to';
+type SortDirection = 'asc' | 'desc';
 
 interface LeadTableProps {
   leads: LeadRow[];
-  selectedLeadId: number | null;
+  selectedLeadId: number | string | null;
   onSelectLead: (lead: LeadRow) => void;
   isLoading?: boolean;
+  sortField?: SortField;
+  sortDirection?: SortDirection;
+  onSort?: (field: SortField, direction: SortDirection) => void;
 }
 
 const masterStatusColors: Record<string, string> = {
@@ -30,6 +37,7 @@ function TableSkeleton() {
           <TableCell><Skeleton className="h-4 w-16" /></TableCell>
           <TableCell><Skeleton className="h-4 w-20" /></TableCell>
           <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+          <TableCell><Skeleton className="h-4 w-24" /></TableCell>
           <TableCell><Skeleton className="h-4 w-10" /></TableCell>
           <TableCell><Skeleton className="h-4 w-28" /></TableCell>
           <TableCell><Skeleton className="h-4 w-28" /></TableCell>
@@ -39,7 +47,24 @@ function TableSkeleton() {
   );
 }
 
-export function LeadTable({ leads, selectedLeadId, onSelectLead, isLoading }: LeadTableProps) {
+export function LeadTable({ leads, selectedLeadId, onSelectLead, isLoading, sortField, sortDirection, onSort }: LeadTableProps) {
+  const handleSort = (field: SortField) => {
+    if (!onSort) return;
+    if (sortField === field) {
+      // Toggle direction
+      onSort(field, sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Default to desc for time fields, asc for others
+      onSort(field, field === 'last_contact' || field === 'next_followup' ? 'desc' : 'asc');
+    }
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return <ArrowUpDown className="h-4 w-4 ml-1 text-muted-foreground" />;
+    return sortDirection === 'asc' ?
+      <ArrowUp className="h-4 w-4 ml-1" /> :
+      <ArrowDown className="h-4 w-4 ml-1" />;
+  };
   if (!isLoading && leads.length === 0) {
     return (
       <div className="text-center py-12 bg-card rounded-lg border border-border/50">
@@ -54,15 +79,56 @@ export function LeadTable({ leads, selectedLeadId, onSelectLead, isLoading }: Le
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30">
-              <TableHead className="font-semibold">Name</TableHead>
+              <TableHead
+                className="font-semibold cursor-pointer hover:bg-muted/50"
+                onClick={() => handleSort('name')}
+              >
+                <div className="flex items-center">
+                  Name
+                  <SortIcon field="name" />
+                </div>
+              </TableHead>
               <TableHead className="font-semibold">Email</TableHead>
               <TableHead className="font-semibold">Company</TableHead>
               <TableHead className="font-semibold">Country</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
               <TableHead className="font-semibold">Stage</TableHead>
-              <TableHead className="font-semibold text-right">Score</TableHead>
-              <TableHead className="font-semibold">Last Contact</TableHead>
-              <TableHead className="font-semibold">Next Follow-up</TableHead>
+              <TableHead
+                className="font-semibold cursor-pointer hover:bg-muted/50"
+                onClick={() => handleSort('assigned_to')}
+              >
+                <div className="flex items-center">
+                  Assigned to
+                  <SortIcon field="assigned_to" />
+                </div>
+              </TableHead>
+              <TableHead
+                className="font-semibold text-right cursor-pointer hover:bg-muted/50"
+                onClick={() => handleSort('score')}
+              >
+                <div className="flex items-center justify-end">
+                  Score
+                  <SortIcon field="score" />
+                </div>
+              </TableHead>
+              <TableHead
+                className="font-semibold cursor-pointer hover:bg-muted/50"
+                onClick={() => handleSort('last_contact')}
+              >
+                <div className="flex items-center">
+                  Last Contact
+                  <SortIcon field="last_contact" />
+                </div>
+              </TableHead>
+              <TableHead
+                className="font-semibold cursor-pointer hover:bg-muted/50"
+                onClick={() => handleSort('next_followup')}
+              >
+                <div className="flex items-center">
+                  Next Follow-up
+                  <SortIcon field="next_followup" />
+                </div>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -78,7 +144,23 @@ export function LeadTable({ leads, selectedLeadId, onSelectLead, isLoading }: Le
                     selectedLeadId === lead.id && 'bg-primary/5'
                   )}
                 >
-                  <TableCell className="font-medium">{lead.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      {lead.name}
+                      {lead.lead_source && (
+                        <Badge
+                          variant="outline"
+                          className={`text-xs ${
+                            lead.lead_source === 'Website'
+                              ? 'bg-blue-50 text-blue-700 border-blue-200'
+                              : 'bg-purple-50 text-purple-700 border-purple-200'
+                          }`}
+                        >
+                          {lead.lead_source}
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{lead.email}</TableCell>
                   <TableCell>{lead.company || '—'}</TableCell>
                   <TableCell>{lead.country || '—'}</TableCell>
@@ -86,12 +168,15 @@ export function LeadTable({ leads, selectedLeadId, onSelectLead, isLoading }: Le
                     <span className="text-sm">{lead.status || '—'}</span>
                   </TableCell>
                   <TableCell>
-                    <Badge 
+                    <Badge
                       variant="secondary"
-                      className={masterStatusColors[lead.master_status] || 'bg-secondary text-secondary-foreground'}
+                      className={`text-base font-semibold px-3 py-1 ${masterStatusColors[lead.master_status] || 'bg-secondary text-secondary-foreground'}`}
                     >
                       {lead.master_status || '—'}
                     </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {lead.assigned_to || '—'}
                   </TableCell>
                   <TableCell className="text-right font-mono">
                     {lead.average_score?.toFixed(1) || '—'}

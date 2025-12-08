@@ -6,6 +6,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper to check if ID is UUID (website lead) or numeric (meta lead)
+function isUUID(id: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -61,12 +67,108 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch lead details
-    const { data, error } = await supabase
-      .from('leads')
-      .select('*')
-      .eq('id', parseInt(leadId))
-      .maybeSingle();
+    let data, error, leadSource;
+
+    // Determine which table to query based on ID format
+    if (isUUID(leadId)) {
+      // Website lead - query Website_Lead_Tracker
+      console.log('Fetching website lead:', leadId);
+      leadSource = 'Website';
+
+      const result = await supabase
+        .from('Website_Lead_Tracker')
+        .select('*')
+        .eq('id', leadId)
+        .maybeSingle();
+
+      data = result.data;
+      error = result.error;
+
+      if (data) {
+        // Map Website_Lead_Tracker columns to standard format
+        const lead = {
+          id: data.id,
+          meta_lead_id: null,
+          name: `${data.first_name} ${data.last_name}`.trim(),
+          email: data.email,
+          company: null,
+          phone: data.phone_number || '',
+          country: null,
+          status: data.status || '',
+          master_status: data.master_status || '',
+          average_score: null,
+          persona_fit: null,
+          activation_fit: null,
+          intent_score: null,
+          ad_id: null,
+          ad_name: null,
+          where: null,
+          what_matters: null,
+          experience_with_technology: null,
+          last_contact_timestamp: data.created_at,
+          next_followup_timestamp: data.Next_Followup_Time,
+          conversation_history: data.conversation_history || '',
+          lead_source: 'Website',
+          initial_message: data.message || '',
+          assigned_to: data.assigned_to || null,
+        };
+
+        console.log('Website lead fetched successfully');
+        return new Response(
+          JSON.stringify(lead),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else {
+      // Meta lead - query LeadTracker
+      console.log('Fetching meta lead:', leadId);
+      leadSource = 'Meta';
+
+      const result = await supabase
+        .from('LeadTracker')
+        .select('*')
+        .eq('id', parseInt(leadId))
+        .maybeSingle();
+
+      data = result.data;
+      error = result.error;
+
+      if (data) {
+        // Map LeadTracker columns to standard format
+        const lead = {
+          id: data.id,
+          meta_lead_id: data.meta_lead_id,
+          name: data.name,
+          email: data.email,
+          company: data['Company name'] || '',
+          phone: data['Phone_number'] || '',
+          country: data.country || '',
+          status: data.status || '',
+          master_status: data.master_status || '',
+          average_score: data.average_score || 0,
+          persona_fit: data.persona_fit || 0,
+          activation_fit: data.activation_fit || 0,
+          intent_score: data.intent_score || 0,
+          ad_id: data['Ad_ID'] || 0,
+          ad_name: data['Ad Name'] || '',
+          where: data['where?'] || '',
+          what_matters: data['what matters?'] || '',
+          experience_with_technology: data['experience with technology'] || '',
+          last_contact_timestamp: data.last_contact_timestamp,
+          next_followup_timestamp: data.next_followup_timestamp,
+          conversation_history: data.conversation_history || '',
+          lead_source: 'Meta',
+          initial_message: null,
+          assigned_to: data.assigned_to || null,
+        };
+
+        console.log('Meta lead fetched successfully');
+        return new Response(
+          JSON.stringify(lead),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
 
     if (error) {
       console.error('Database error:', error);
@@ -82,37 +184,6 @@ serve(async (req) => {
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Map database columns to expected format
-    const lead = {
-      id: data.id,
-      meta_lead_id: data.meta_lead_id,
-      name: data.name,
-      email: data.email,
-      company: data['Company name'] || '',
-      phone: data['Phone_number'] || '',
-      country: data.country || '',
-      status: data.status || '',
-      master_status: data.master_status || '',
-      average_score: data.average_score || 0,
-      persona_fit: data.persona_fit || 0,
-      activation_fit: data.activation_fit || 0,
-      intent_score: data.intent_score || 0,
-      ad_id: data['Ad_ID'] || 0,
-      ad_name: data['Ad Name'] || '',
-      where: data['where?'] || '',
-      what_matters: data['what matters?'] || '',
-      experience_with_technology: data['experience with technology'] || '',
-      last_contact_timestamp: data.last_contact_timestamp,
-      next_followup_timestamp: data.next_followup_timestamp,
-      conversation_history: data.conversation_history || '',
-    };
-
-    console.log('Lead fetched successfully:', leadId);
-    return new Response(
-      JSON.stringify(lead),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
   } catch (error) {
     console.error('Leads error:', error);
     return new Response(
