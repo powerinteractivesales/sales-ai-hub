@@ -218,6 +218,49 @@ export function groupMessagesByDate(
 }
 
 /**
+ * Cleans message content for display
+ * Converts escaped newlines to HTML breaks and sanitizes formatting
+ */
+export function cleanMessageContent(content: string): string {
+  if (!content) return '';
+
+  let cleaned = content;
+
+  // Check if content already has HTML paragraph/break tags
+  const hasHtmlFormatting = /<p>|<br\s*\/?>/i.test(cleaned);
+
+  if (hasHtmlFormatting) {
+    // Content has HTML formatting - just clean up any stray literal \n
+    // Replace literal \n (2 chars) that might appear between tags
+    cleaned = cleaned.replace(/\\n/g, '');
+    // Also clean up any actual newline characters that shouldn't be visible
+    cleaned = cleaned.replace(/\n+/g, '');
+  } else {
+    // Plain text content - convert newlines to HTML breaks
+    // First handle literal \n (2 chars - backslash followed by n)
+    cleaned = cleaned.replace(/\\n/g, '\n');
+    // Then convert actual newlines to <br> tags
+    // Multiple newlines become paragraph breaks
+    cleaned = cleaned.replace(/\n{3,}/g, '</p><p>');
+    cleaned = cleaned.replace(/\n{2}/g, '</p><p>');
+    cleaned = cleaned.replace(/\n/g, '<br>');
+
+    // Wrap in paragraph tags if not already
+    if (!cleaned.startsWith('<p>')) {
+      cleaned = `<p>${cleaned}</p>`;
+    }
+  }
+
+  // Clean up empty paragraphs
+  cleaned = cleaned.replace(/<p>\s*<\/p>/g, '');
+
+  // Clean up excessive breaks
+  cleaned = cleaned.replace(/(<br\s*\/?>\s*){3,}/gi, '<br><br>');
+
+  return cleaned;
+}
+
+/**
  * Gets a human-readable label for message type
  */
 export function getMessageLabel(message: ConversationMessage): string {

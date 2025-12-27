@@ -376,40 +376,51 @@ server {
 
 ### Deploying Updates
 
-**From your local machine (after making code changes):**
+**Standard Workflow (after making code changes locally):**
 
-1. Push changes to GitHub:
+1. **Commit and push to GitHub:**
    ```bash
    git add .
    git commit -m "Your changes"
    git push origin main
    ```
 
-2. SSH into VPS:
+2. **SSH into VPS:**
    ```bash
    ssh root@141.136.36.201
    ```
 
-3. Pull and rebuild:
+3. **Pull and rebuild on VPS:**
    ```bash
    cd /var/www/sales-dashboard
    git pull origin main
-   npm install        # Only if dependencies changed
+   npm install        # Only if dependencies changed (new packages added)
    npm run build
    docker build -t sales-dashboard .
    cd ~
    docker compose up -d
    ```
 
-**Quick deploy script (run on VPS):**
+**Quick deploy script (run on VPS after SSH):**
 
 ```bash
 cd /var/www/sales-dashboard && git pull && npm run build && docker build -t sales-dashboard . && cd ~ && docker compose up -d
 ```
 
+**With npm install (if dependencies changed):**
+
+```bash
+cd /var/www/sales-dashboard && git pull && npm install && npm run build && docker build -t sales-dashboard . && cd ~ && docker compose up -d
+```
+
+**Note:** The VPS git repository was initialized on Dec 27, 2024. The `.env` file is gitignored and must be preserved manually on the VPS.
+
 ### Useful VPS Commands
 
 ```bash
+# SSH access
+ssh root@141.136.36.201
+
 # View running containers
 docker ps
 
@@ -427,9 +438,6 @@ cd /var/www/sales-dashboard && npm run build && docker build -t sales-dashboard 
 
 # Check Traefik logs (for SSL/routing issues)
 docker logs root-traefik-1
-
-# SSH access
-ssh root@141.136.36.201
 ```
 
 ### Environment Variables on VPS

@@ -8,7 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import type { LeadRow, LeadDetail as LeadDetailType, ConversationMessage } from '@/types/dashboard';
 import { fetchLead } from '@/lib/api';
 import { formatInDubaiTime } from '@/lib/timezone';
-import { parseConversation, groupMessagesByDate, getMessageLabel } from '@/lib/conversation';
+import { parseConversation, groupMessagesByDate, getMessageLabel, cleanMessageContent } from '@/lib/conversation';
 import { X, Mail, Phone, Building2, MapPin, Calendar, MessageSquare } from 'lucide-react';
 
 interface LeadDetailProps {
@@ -49,45 +49,41 @@ function MessageBubble({ message }: { message: ConversationMessage }) {
         `}>
           {/* Sender label */}
           <div className="flex items-center gap-2 mb-2">
-            <div className={`w-1.5 h-1.5 rounded-full ${
-              alignRight
-                ? 'bg-slate-100 dark:bg-slate-800'
-                : isFollowup
-                  ? 'bg-blue-500'
-                  : 'bg-slate-400'
-            }`} />
-            <span className={`text-xs font-medium uppercase tracking-wide ${
-              alignRight
-                ? 'text-slate-100 dark:text-slate-800'
-                : isFollowup
-                  ? 'text-blue-600 dark:text-blue-400'
-                  : 'text-slate-500 dark:text-slate-400'
-            }`}>
+            <div className={`w-1.5 h-1.5 rounded-full ${alignRight
+              ? 'bg-slate-100 dark:bg-slate-800'
+              : isFollowup
+                ? 'bg-blue-500'
+                : 'bg-slate-400'
+              }`} />
+            <span className={`text-xs font-medium uppercase tracking-wide ${alignRight
+              ? 'text-slate-100 dark:text-slate-800'
+              : isFollowup
+                ? 'text-blue-600 dark:text-blue-400'
+                : 'text-slate-500 dark:text-slate-400'
+              }`}>
               {getMessageLabel(message)}
             </span>
           </div>
 
           {/* Message content */}
           <div
-            className={`text-sm leading-relaxed ${
-              alignRight
-                ? 'text-white dark:text-slate-900'
-                : isFollowup
-                  ? 'text-blue-900 dark:text-blue-100'
-                  : 'text-slate-900 dark:text-slate-100'
-            }`}
-            dangerouslySetInnerHTML={{ __html: content }}
+            className={`text-sm leading-relaxed ${alignRight
+              ? 'text-white dark:text-slate-900'
+              : isFollowup
+                ? 'text-blue-900 dark:text-blue-100'
+                : 'text-slate-900 dark:text-slate-100'
+              }`}
+            dangerouslySetInnerHTML={{ __html: cleanMessageContent(content) }}
           />
 
           {/* Timestamp */}
           <div className="mt-3 flex justify-end">
-            <span className={`text-xs ${
-              alignRight
-                ? 'text-slate-300 dark:text-slate-600'
-                : isFollowup
-                  ? 'text-blue-400 dark:text-blue-600'
-                  : 'text-slate-400 dark:text-slate-500'
-            }`}>
+            <span className={`text-xs ${alignRight
+              ? 'text-slate-300 dark:text-slate-600'
+              : isFollowup
+                ? 'text-blue-400 dark:text-blue-600'
+                : 'text-slate-400 dark:text-slate-500'
+              }`}>
               {formatInDubaiTime(timestamp, 'h:mm a')}
             </span>
           </div>
@@ -136,7 +132,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
     async function loadLead() {
       setIsLoading(true);
       setError(null);
-      
+
       try {
         const data = await fetchLead(lead.id);
         if (!cancelled) {
@@ -164,7 +160,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
         <div className="space-y-1">
           <h2 className="text-xl font-semibold">{lead.name}</h2>
           <div className="flex items-center gap-2">
-            <Badge 
+            <Badge
               variant="secondary"
               className={masterStatusColors[lead.master_status] || ''}
             >
