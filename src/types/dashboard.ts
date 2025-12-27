@@ -35,6 +35,14 @@ export interface DashboardSummary {
   total_meta_leads: number;
 }
 
+export interface ConversationMessage {
+  role: 'ai' | 'customer' | 'human_initial' | 'followup';
+  content: string;
+  timestamp: string;
+  messageType?: 'initial_outreach' | 'reply' | 'customer_reply' | 'form_response' | 'followup_1' | 'followup_2' | 'followup_3' | 'followup_4';
+  source?: 'meta' | 'website';
+}
+
 export interface LeadRow {
   id: number | string; // number for Meta leads, UUID string for Website leads
   meta_lead_id: string | null;
@@ -54,11 +62,16 @@ export interface LeadRow {
   where: string | null;
   what_matters: string | null;
   experience_with_technology: string | null;
+  business_type: string | null;
+  goal_with_technology: string | null;
+  timeline: string | null;
   last_contact_timestamp: string | null;
   next_followup_timestamp: string | null;
+  created_at?: string | null; // Creation timestamp
   lead_source?: string; // 'Meta' or 'Website'
   initial_message?: string | null; // For website leads
   assigned_to?: string | null;
+  assign_webhook_url?: string; // Webhook URL for lead assignment
 }
 
 export interface DashboardPayload {

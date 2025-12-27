@@ -7,8 +7,18 @@ export function formatInDubaiTime(isoString: string | null | undefined, formatSt
   if (!isoString) return '—';
 
   try {
+    // n8n sends UTC timestamps that may or may not have timezone suffix
+    // Ensure we parse as UTC by appending 'Z' if not present
+    let utcString = isoString.trim();
+
+    // If timestamp doesn't have timezone info (no Z, no +00:00), append Z to force UTC parsing
+    if (!utcString.endsWith('Z') && !utcString.includes('+') && !utcString.includes('-', 10)) {
+      // Replace space with T for ISO format, then append Z
+      utcString = utcString.replace(' ', 'T') + 'Z';
+    }
+
     // Use date-fns-tz to properly convert UTC to Dubai time
-    return formatInTimeZone(new Date(isoString), DUBAI_TIMEZONE, formatStr);
+    return formatInTimeZone(new Date(utcString), DUBAI_TIMEZONE, formatStr);
   } catch {
     return '—';
   }

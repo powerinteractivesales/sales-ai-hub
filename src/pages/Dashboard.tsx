@@ -64,9 +64,13 @@ export default function Dashboard() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [countryFilter, setCountryFilter] = useState('all');
   const [assignedToFilter, setAssignedToFilter] = useState('all');
+  const [dateRangeFilter, setDateRangeFilter] = useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({ from: undefined, to: undefined });
 
   // Sorting
-  const [sortField, setSortField] = useState<'last_contact' | 'next_followup' | 'score' | 'name' | 'assigned_to'>('last_contact');
+  const [sortField, setSortField] = useState<'last_contact' | 'next_followup' | 'score' | 'name' | 'assigned_to' | 'created'>('last_contact');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Pagination
@@ -145,7 +149,28 @@ export default function Dashboard() {
       const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
       const matchesCountry = countryFilter === 'all' || lead.country === countryFilter;
       const matchesAssignedTo = assignedToFilter === 'all' || lead.assigned_to === assignedToFilter;
-      return matchesSearch && matchesMasterStatus && matchesStatus && matchesCountry && matchesAssignedTo;
+
+      // Date range filter
+      let matchesDateRange = true;
+      if (dateRangeFilter.from || dateRangeFilter.to) {
+        if (!lead.created_at) {
+          matchesDateRange = false;
+        } else {
+          const createdDate = new Date(lead.created_at);
+          if (dateRangeFilter.from) {
+            const fromDate = new Date(dateRangeFilter.from);
+            fromDate.setHours(0, 0, 0, 0);
+            if (createdDate < fromDate) matchesDateRange = false;
+          }
+          if (dateRangeFilter.to) {
+            const toDate = new Date(dateRangeFilter.to);
+            toDate.setHours(23, 59, 59, 999);
+            if (createdDate > toDate) matchesDateRange = false;
+          }
+        }
+      }
+
+      return matchesSearch && matchesMasterStatus && matchesStatus && matchesCountry && matchesAssignedTo && matchesDateRange;
     });
 
     // Sort
@@ -174,6 +199,10 @@ export default function Dashboard() {
           aVal = a.assigned_to?.toLowerCase() || '';
           bVal = b.assigned_to?.toLowerCase() || '';
           break;
+        case 'created':
+          aVal = a.created_at ? new Date(a.created_at).getTime() : 0;
+          bVal = b.created_at ? new Date(b.created_at).getTime() : 0;
+          break;
         default:
           return 0;
       }
@@ -189,12 +218,12 @@ export default function Dashboard() {
     const paginated = sorted.slice(startIdx, startIdx + pageSize);
 
     return { sortedLeads: sorted, paginatedLeads: paginated, totalPages: total };
-  }, [payload?.leads, searchQuery, masterStatusFilter, statusFilter, countryFilter, assignedToFilter, sortField, sortDirection, currentPage, pageSize]);
+  }, [payload?.leads, searchQuery, masterStatusFilter, statusFilter, countryFilter, assignedToFilter, dateRangeFilter, sortField, sortDirection, currentPage, pageSize]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, masterStatusFilter, statusFilter, countryFilter, assignedToFilter]);
+  }, [searchQuery, masterStatusFilter, statusFilter, countryFilter, assignedToFilter, dateRangeFilter]);
 
   const summary = payload?.summary || DEFAULT_SUMMARY;
 
@@ -206,7 +235,7 @@ export default function Dashboard() {
         onRefresh={handleRefresh}
       />
 
-      <main className="container mx-auto px-4 py-6 space-y-6">
+      <main className="w-full px-6 py-6 space-y-6">
         {/* KPI Cards */}
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -234,12 +263,14 @@ export default function Dashboard() {
           assignedTos={assignedTos}
           assignedToFilter={assignedToFilter}
           onAssignedToChange={setAssignedToFilter}
+          dateRangeFilter={dateRangeFilter}
+          onDateRangeChange={setDateRangeFilter}
         />
 
         {/* Main Content Area */}
-        <div className="flex gap-6">
+        <div className="flex gap-6 w-full">
           {/* Lead List */}
-          <div className={`flex-1 ${!isMobile && selectedLead ? 'max-w-[calc(100%-400px)]' : ''}`}>
+          <div className={`min-w-0 flex-1 ${!isMobile && selectedLead ? 'max-w-[calc(100%-400px)]' : 'w-full'}`}>
             {isMobile ? (
               <div className="space-y-3">
                 {isLoading ? (

@@ -1,5 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { AssignmentDropdown } from './AssignmentDropdown';
 import type { LeadRow } from '@/types/dashboard';
 import { formatInDubaiTime } from '@/lib/timezone';
 import { cn } from '@/lib/utils';
@@ -34,11 +35,12 @@ export function MobileLeadCard({ lead, isSelected, onClick }: MobileLeadCardProp
             {lead.company && (
               <p className="text-sm text-muted-foreground">{lead.company}</p>
             )}
-            {lead.assigned_to && (
-              <p className="text-sm text-muted-foreground">
-                Assigned: {lead.assigned_to}
-              </p>
-            )}
+            <div className="text-sm" onClick={(e) => e.stopPropagation()}>
+              <AssignmentDropdown
+                currentAssignee={lead.assigned_to}
+                webhookUrl={lead.assign_webhook_url}
+              />
+            </div>
           </div>
           <div className="text-right shrink-0">
             <div className="text-lg font-bold text-primary">
@@ -72,14 +74,20 @@ export function MobileLeadCard({ lead, isSelected, onClick }: MobileLeadCardProp
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-2 mt-3 text-xs text-muted-foreground">
+        <div className="mt-3 text-xs text-muted-foreground space-y-2">
           <div>
-            <span className="block font-medium">Last Contact</span>
-            {formatInDubaiTime(lead.last_contact_timestamp, 'MMM d, h:mm a')}
+            <span className="block font-medium">Created</span>
+            {formatInDubaiTime(lead.created_at, 'MMM d, h:mm a')}
           </div>
-          <div>
-            <span className="block font-medium">Next Follow-up</span>
-            {formatInDubaiTime(lead.next_followup_timestamp, 'MMM d, h:mm a')}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <span className="block font-medium">Last Contact</span>
+              {formatInDubaiTime(lead.last_contact_timestamp, 'MMM d, h:mm a')}
+            </div>
+            <div>
+              <span className="block font-medium">Next Follow-up</span>
+              {formatInDubaiTime(lead.next_followup_timestamp, 'MMM d, h:mm a')}
+            </div>
           </div>
         </div>
       </CardContent>

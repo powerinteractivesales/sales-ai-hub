@@ -1,12 +1,13 @@
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AssignmentDropdown } from './AssignmentDropdown';
 import type { LeadRow } from '@/types/dashboard';
 import { formatInDubaiTime } from '@/lib/timezone';
 import { cn } from '@/lib/utils';
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
-type SortField = 'last_contact' | 'next_followup' | 'score' | 'name' | 'assigned_to';
+type SortField = 'last_contact' | 'next_followup' | 'score' | 'name' | 'assigned_to' | 'created';
 type SortDirection = 'asc' | 'desc';
 
 interface LeadTableProps {
@@ -38,6 +39,7 @@ function TableSkeleton() {
           <TableCell><Skeleton className="h-4 w-20" /></TableCell>
           <TableCell><Skeleton className="h-5 w-16" /></TableCell>
           <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+          <TableCell><Skeleton className="h-4 w-24" /></TableCell>
           <TableCell><Skeleton className="h-4 w-10" /></TableCell>
           <TableCell><Skeleton className="h-4 w-28" /></TableCell>
           <TableCell><Skeleton className="h-4 w-28" /></TableCell>
@@ -55,7 +57,7 @@ export function LeadTable({ leads, selectedLeadId, onSelectLead, isLoading, sort
       onSort(field, sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
       // Default to desc for time fields, asc for others
-      onSort(field, field === 'last_contact' || field === 'next_followup' ? 'desc' : 'asc');
+      onSort(field, field === 'last_contact' || field === 'next_followup' || field === 'created' ? 'desc' : 'asc');
     }
   };
 
@@ -74,16 +76,15 @@ export function LeadTable({ leads, selectedLeadId, onSelectLead, isLoading, sort
   }
 
   return (
-    <div className="rounded-lg border border-border/50 overflow-hidden bg-card">
-      <div className="overflow-x-auto">
-        <Table>
+    <div className="rounded-lg border border-border/50 bg-card overflow-x-auto">
+      <table className="w-full caption-bottom text-sm">
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30">
               <TableHead
                 className="font-semibold cursor-pointer hover:bg-muted/50"
                 onClick={() => handleSort('name')}
               >
-                <div className="flex items-center">
+                <div className="flex items-center whitespace-nowrap">
                   Name
                   <SortIcon field="name" />
                 </div>
@@ -97,16 +98,25 @@ export function LeadTable({ leads, selectedLeadId, onSelectLead, isLoading, sort
                 className="font-semibold cursor-pointer hover:bg-muted/50"
                 onClick={() => handleSort('assigned_to')}
               >
-                <div className="flex items-center">
-                  Assigned to
+                <div className="flex items-center whitespace-nowrap">
+                  Assigned
                   <SortIcon field="assigned_to" />
+                </div>
+              </TableHead>
+              <TableHead
+                className="font-semibold cursor-pointer hover:bg-muted/50"
+                onClick={() => handleSort('created')}
+              >
+                <div className="flex items-center whitespace-nowrap">
+                  Created
+                  <SortIcon field="created" />
                 </div>
               </TableHead>
               <TableHead
                 className="font-semibold text-right cursor-pointer hover:bg-muted/50"
                 onClick={() => handleSort('score')}
               >
-                <div className="flex items-center justify-end">
+                <div className="flex items-center justify-end whitespace-nowrap">
                   Score
                   <SortIcon field="score" />
                 </div>
@@ -115,7 +125,7 @@ export function LeadTable({ leads, selectedLeadId, onSelectLead, isLoading, sort
                 className="font-semibold cursor-pointer hover:bg-muted/50"
                 onClick={() => handleSort('last_contact')}
               >
-                <div className="flex items-center">
+                <div className="flex items-center whitespace-nowrap">
                   Last Contact
                   <SortIcon field="last_contact" />
                 </div>
@@ -124,8 +134,8 @@ export function LeadTable({ leads, selectedLeadId, onSelectLead, isLoading, sort
                 className="font-semibold cursor-pointer hover:bg-muted/50"
                 onClick={() => handleSort('next_followup')}
               >
-                <div className="flex items-center">
-                  Next Follow-up
+                <div className="flex items-center whitespace-nowrap">
+                  Follow-up
                   <SortIcon field="next_followup" />
                 </div>
               </TableHead>
@@ -144,55 +154,58 @@ export function LeadTable({ leads, selectedLeadId, onSelectLead, isLoading, sort
                     selectedLeadId === lead.id && 'bg-primary/5'
                   )}
                 >
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      {lead.name}
+                  <TableCell className="font-medium max-w-[150px]">
+                    <div className="flex items-center gap-1">
+                      <span className="truncate">{lead.name}</span>
                       {lead.lead_source && (
                         <Badge
                           variant="outline"
-                          className={`text-xs ${
+                          className={`text-xs px-1 py-0 shrink-0 ${
                             lead.lead_source === 'Website'
                               ? 'bg-blue-50 text-blue-700 border-blue-200'
                               : 'bg-purple-50 text-purple-700 border-purple-200'
                           }`}
                         >
-                          {lead.lead_source}
+                          {lead.lead_source === 'Website' ? 'Web' : 'Meta'}
                         </Badge>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{lead.email}</TableCell>
-                  <TableCell>{lead.company || '—'}</TableCell>
+                  <TableCell className="text-muted-foreground max-w-[180px] truncate">{lead.email}</TableCell>
+                  <TableCell className="max-w-[120px] truncate">{lead.company || '—'}</TableCell>
                   <TableCell>{lead.country || '—'}</TableCell>
-                  <TableCell>
-                    <span className="text-sm">{lead.status || '—'}</span>
-                  </TableCell>
+                  <TableCell>{lead.status || '—'}</TableCell>
                   <TableCell>
                     <Badge
                       variant="secondary"
-                      className={`text-base font-semibold px-3 py-1 ${masterStatusColors[lead.master_status] || 'bg-secondary text-secondary-foreground'}`}
+                      className={`text-sm font-medium px-2 py-0.5 ${masterStatusColors[lead.master_status] || 'bg-secondary text-secondary-foreground'}`}
                     >
                       {lead.master_status || '—'}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {lead.assigned_to || '—'}
+                  <TableCell>
+                    <AssignmentDropdown
+                      currentAssignee={lead.assigned_to}
+                      webhookUrl={lead.assign_webhook_url}
+                    />
+                  </TableCell>
+                  <TableCell className="text-muted-foreground whitespace-nowrap">
+                    {formatInDubaiTime(lead.created_at, 'MMM d, h:mma')}
                   </TableCell>
                   <TableCell className="text-right font-mono">
                     {lead.average_score?.toFixed(1) || '—'}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatInDubaiTime(lead.last_contact_timestamp, 'MMM d, h:mm a')}
+                  <TableCell className="text-muted-foreground whitespace-nowrap">
+                    {formatInDubaiTime(lead.last_contact_timestamp, 'MMM d, h:mma')}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatInDubaiTime(lead.next_followup_timestamp, 'MMM d, h:mm a')}
+                  <TableCell className="text-muted-foreground whitespace-nowrap">
+                    {formatInDubaiTime(lead.next_followup_timestamp, 'MMM d, h:mma')}
                   </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
-        </Table>
-      </div>
+        </table>
     </div>
   );
 }

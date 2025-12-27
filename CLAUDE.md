@@ -165,10 +165,12 @@ Frontend:
 
 All timestamps are displayed in **Asia/Dubai (UTC+4 / GST)** timezone. The conversion logic is in `src/lib/timezone.ts`:
 - **Library:** Uses `date-fns-tz` for proper timezone conversion
-- **Input:** UTC timestamps from n8n and database
-- **Output:** Dubai time formatted as "8:17:45 PM GST"
-- **Key Function:** `formatInTimeZone(new Date(isoString), 'Asia/Dubai', formatStr)`
-- **Important:** n8n sends UTC timestamps, frontend converts to Dubai time for display
+- **Input:** n8n sends UTC timestamps in format "YYYY-MM-DD hh:mm A", conversation parser converts to UTC ISO strings
+- **Storage:** All timestamps stored as UTC ISO 8601 strings
+- **Output:** Dubai time formatted as "h:mm a GST" (e.g., "10:18 AM")
+- **Key Function:** `formatInTimeZone(new Date(utcIsoString), 'Asia/Dubai', formatStr)`
+- **Critical:** Conversation parser in `src/lib/conversation.ts` explicitly parses n8n timestamps as UTC by appending ' UTC' before creating Date object
+- **Important:** n8n must send UTC timestamps - frontend handles all timezone conversion to Dubai time
 
 ## Mock Data Mode
 
@@ -234,10 +236,11 @@ The n8n workflow processes leads from both sources:
     - **Hero Metrics Row:** 4 gradient cards (Total Pipeline, Hot Opportunities, Conversion Rate, Response Rate)
     - **Activity Section:** 4 cards with time-based metrics (Due Now, 24h, 7d, 30d)
     - **Quality & Distribution:** 2 large cards with Lead Quality Scores (progress bars) and Pipeline Distribution (horizontal bars)
-  - `LeadFilters` - Search and dropdown filters (Name/Email, Stage, Status, Country, Assigned to)
-  - `LeadTable` - Sortable desktop table view with lead source badges (blue=Website, purple=Meta), includes Assigned to column
-  - `MobileLeadCard` - Mobile card view with lead source badges, shows assignment info
+  - `LeadFilters` - Search and dropdown filters (Name/Email, Stage, Status, Country, Assigned to, Created date range)
+  - `LeadTable` - Sortable desktop table view with 11 columns: Name, Email, Company, Country, Status, Stage, Assigned (dropdown), Created, Score, Last Contact, Follow-up
+  - `MobileLeadCard` - Mobile card view with lead source badges and assignment dropdown
   - `LeadDetail` - Side panel/modal for lead details (works for both lead sources), displays Assigned To field
+  - `AssignmentDropdown` - Reusable dropdown for assigning leads to team members, used in both LeadTable and MobileLeadCard
 
 ## Known Issues & Workarounds
 
@@ -292,7 +295,212 @@ TypeScript is strictly enforced. Pay attention to:
 - Timestamp string formats (ISO 8601)
 - Score fields as `number | null`
 
+## Production Deployment (Hostinger VPS)
+
+The dashboard is deployed on a Hostinger VPS alongside n8n, using Docker and Traefik reverse proxy.
+
+### Live URL
+- **Dashboard:** https://dashboard.queenpowerinteractive.cloud
+- **n8n:** https://n8n.queenpowerinteractive.cloud
+
+### Server Architecture
+
+```
+Hostinger VPS (queenpowerinteractive.cloud)
+├── Traefik (reverse proxy, ports 80/443, auto SSL)
+├── sales-dashboard (Nginx container serving static build)
+├── n8n (workflow automation)
+├── n8n-worker (background job processor)
+├── PostgreSQL (n8n database)
+└── Redis (n8n queue)
+```
+
+### File Locations on VPS
+
+```
+/root/
+├── docker-compose.yml    # Main Docker stack config
+├── .env                  # n8n environment variables
+└── redis-data/           # Redis persistence
+
+/var/www/sales-dashboard/
+├── .env                  # Vite environment variables (Supabase keys)
+├── dist/                 # Production build (served by Nginx)
+├── Dockerfile            # Nginx-based container
+├── nginx.conf            # SPA routing config
+├── src/                  # Source code
+└── package.json          # Dependencies
+```
+
+### Docker Compose Configuration
+
+The dashboard service in `/root/docker-compose.yml`:
+
+```yaml
+dashboard:
+  image: sales-dashboard
+  restart: always
+  labels:
+    - traefik.enable=true
+    - traefik.http.routers.dashboard.rule=Host(`dashboard.${DOMAIN_NAME}`)
+    - traefik.http.routers.dashboard.tls=true
+    - traefik.http.routers.dashboard.entrypoints=web,websecure
+    - traefik.http.routers.dashboard.tls.certresolver=mytlschallenge
+```
+
+### Dockerfile
+
+Located at `/var/www/sales-dashboard/Dockerfile`:
+
+```dockerfile
+FROM nginx:alpine
+COPY dist/ /usr/share/nginx/html/
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+```
+
+### Nginx Configuration
+
+Located at `/var/www/sales-dashboard/nginx.conf`:
+
+```nginx
+server {
+    listen 80;
+    root /usr/share/nginx/html;
+    index index.html;
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+```
+
+### Deploying Updates
+
+**From your local machine (after making code changes):**
+
+1. Push changes to GitHub:
+   ```bash
+   git add .
+   git commit -m "Your changes"
+   git push origin main
+   ```
+
+2. SSH into VPS:
+   ```bash
+   ssh root@141.136.36.201
+   ```
+
+3. Pull and rebuild:
+   ```bash
+   cd /var/www/sales-dashboard
+   git pull origin main
+   npm install        # Only if dependencies changed
+   npm run build
+   docker build -t sales-dashboard .
+   cd ~
+   docker compose up -d
+   ```
+
+**Quick deploy script (run on VPS):**
+
+```bash
+cd /var/www/sales-dashboard && git pull && npm run build && docker build -t sales-dashboard . && cd ~ && docker compose up -d
+```
+
+### Useful VPS Commands
+
+```bash
+# View running containers
+docker ps
+
+# View dashboard logs
+docker logs root-dashboard-1
+
+# Restart all services
+cd ~ && docker compose restart
+
+# Restart only dashboard
+docker compose restart dashboard
+
+# Rebuild and redeploy dashboard only
+cd /var/www/sales-dashboard && npm run build && docker build -t sales-dashboard . && cd ~ && docker compose up -d dashboard
+
+# Check Traefik logs (for SSL/routing issues)
+docker logs root-traefik-1
+
+# SSH access
+ssh root@141.136.36.201
+```
+
+### Environment Variables on VPS
+
+**Dashboard `.env`** (`/var/www/sales-dashboard/.env`):
+```
+VITE_SUPABASE_PROJECT_ID="lthcgfjrsacctythakll"
+VITE_SUPABASE_PUBLISHABLE_KEY="<anon-key>"
+VITE_SUPABASE_URL="https://lthcgfjrsacctythakll.supabase.co"
+```
+
+**n8n `.env`** (`/root/.env`):
+```
+DOMAIN_NAME=queenpowerinteractive.cloud
+SUBDOMAIN=n8n
+GENERIC_TIMEZONE=Europe/Berlin
+SSL_EMAIL=admin@queenpowerinteractive.cloud
+```
+
+### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Dashboard not loading | Check `docker ps` - is container running? Check `docker logs root-dashboard-1` |
+| SSL certificate error | Wait 2-3 min for Let's Encrypt. Check `docker logs root-traefik-1` |
+| 502 Bad Gateway | Dashboard container crashed. Run `docker compose restart dashboard` |
+| Changes not appearing | Forgot to rebuild? Run full deploy script above |
+| n8n webhook not working | Check n8n is running: `docker logs root-n8n-1` |
+
+### GitHub Repository
+
+- **URL:** https://github.com/powerinteractivesales/sales-ai-hub
+- **Branch:** main
+- **Visibility:** Private (use PAT for cloning)
+
 ## Recent Major Changes
+
+### Lead Assignment Dropdown (Dec 27, 2024)
+- **New Component:** `src/components/dashboard/AssignmentDropdown.tsx`
+- **Inline Dropdown:** Replaced static "Assigned to" text with interactive dropdown in LeadTable and MobileLeadCard
+- **Team Members (hardcoded):**
+  - Zeeshan Qazafi
+  - Shemeer Mohammed
+  - Naji Saeed
+  - Tharindu Hettiarchchi
+- **Webhook Integration:** Calls `{lead.assign_webhook_url}&assignee={URL_ENCODED_NAME}` on selection
+- **UX Features:**
+  - Loading spinner during webhook call
+  - Toast notifications for success/error with "Please refresh to see changes" message
+  - Check mark indicator for current assignee
+  - Click propagation stopped to prevent row selection
+- **Styling:** Ghost button variant, `text-sm` font size
+
+### Lead Creation Date Tracking & Filtering (Dec 27, 2024)
+- **New Fields in LeadRow:** `created_at?: string | null`, `assign_webhook_url?: string`
+- **n8n Integration:** Both normalization code nodes (Meta/Website) now pass `created_at` and aggregation builds `assign_webhook_url` per lead
+- **Date Range Filter:**
+  - Compact date picker in filters row (inline with other filters)
+  - Side-by-side "From" and "To" calendars in popover
+  - Filter leads by creation date range
+- **"Created" Column:** Added sortable column to LeadTable (between Assigned and Score)
+- **Mobile:** Shows creation date in MobileLeadCard
+- **Date Format:** `MMM d, h:mma` in Dubai timezone (e.g., "Dec 27, 4:41am")
+
+### Table UI Improvements (Dec 27, 2024)
+- **Full Width Layout:** Removed `container` max-width constraint, table now uses `w-full px-6`
+- **Text Size:** Increased from `text-xs` (12px) to `text-sm` (14px) for better readability
+- **Cell Padding:** Increased from `px-2` to `px-3`
+- **Responsive:** Table uses native `<table>` element with `overflow-x-auto` container
+- **Stage Badge:** Increased size to `text-sm px-2 py-0.5`
+- **Lead Source Badge:** Compact `text-xs` badges showing "Web" or "Meta"
 
 ### Lead Assignment Feature (Dec 6, 2024)
 - **Database Schema:** Added `assigned_to` column to both LeadTracker and Website_Lead_Tracker tables
@@ -321,3 +529,147 @@ TypeScript is strictly enforced. Pay attention to:
 - **Follow-up tracking:** Changed from "due today" to "due this week" for better forward visibility
 - **Stage badge sizing:** Increased text size and padding for better readability
 - **n8n workflow:** Now has dual-branch structure to query and merge both lead sources before aggregation
+
+### Conversation History Structured Format (Dec 24, 2024)
+- **Problem:** Conversation history was stored as plain text/HTML strings with poor visual separation between AI messages and customer replies, making it difficult to read conversation flow
+- **Solution:** Implemented structured JSON format with beautiful message bubbles while maintaining full backward compatibility
+
+#### Data Format
+
+**Database Storage:**
+- Both `LeadTracker` and `Website_Lead_Tracker` tables store `conversation_history` as TEXT field
+- `dashboard_cache` receives transformed JSON format for optimal frontend rendering
+- Old string format still supported for legacy data
+
+**New JSON Structure:**
+```typescript
+interface ConversationMessage {
+  role: 'ai' | 'customer' | 'human_initial' | 'followup';
+  content: string;
+  timestamp: string; // ISO 8601 UTC
+  messageType?: 'initial_outreach' | 'reply' | 'customer_reply' | 'form_response' | 'followup_1' | 'followup_2' | 'followup_3';
+  source?: 'meta' | 'website';
+}
+
+// Stored as: JSON.stringify(ConversationMessage[])
+```
+
+#### Delimiter Patterns
+
+**Old Delimiters (Legacy - No Timestamp):**
+- `AI Initial Outreach:`
+- `AI Reply:`
+- `PEOPLE WHO FILLED OUT FORM AGAIN - `
+- `Customer Reply:`
+- `Human inital message - ` (note: typo in original)
+- `Initial Outreach:`
+- `Lead message:`
+- `follow up 1 :` (with colon)
+- `follow up 2 :` (with colon)
+- `follow up 3 :` (with colon)
+
+**New Delimiters (With Timestamp in UTC):**
+- `Initial Outreach by AI - {{ $now.format('YYYY-MM-DD hh:mm A') }}`
+- `Reply by Power Interactive - {{ $now.format('YYYY-MM-DD hh:mm A') }}`
+- `Customer Reply - {{ $now.format('YYYY-MM-DD hh:mm A') }}`
+- `Initial Form Response - {{ $now.format('YYYY-MM-DD hh:mm A') }}`
+- `follow up 1 - {{ $now.format('YYYY-MM-DD hh:mm A') }}` (with dash)
+- `follow up 2 - {{ $now.format('YYYY-MM-DD hh:mm A') }}` (with dash)
+- `follow up 3 - {{ $now.format('YYYY-MM-DD hh:mm A') }}` (with dash)
+
+**CRITICAL:** All timestamps from n8n MUST be in UTC timezone. n8n's `$now` variable uses UTC by default.
+
+**Format Pattern:**
+```
+{{ existing_conversation_history }}
+
+[Delimiter] - {{ $now.format('YYYY-MM-DD hh:mm A') }}  <!-- UTC timestamp -->
+
+{{ new_message_content }}
+```
+
+#### Implementation Details
+
+**Frontend Components:**
+1. **`src/lib/conversation.ts`** - Parsing utilities:
+   - `parseConversation()` - Handles both JSON and string formats
+   - `isStructuredConversation()` - Detects format type
+   - `groupMessagesByDate()` - Groups messages by date for UI
+   - `getMessageLabel()` - Returns display labels for message types
+
+2. **`src/components/dashboard/LeadDetail.tsx`** - UI components:
+   - `MessageBubble` - Beautiful message bubbles with role-based styling:
+     - **AI messages:** White background, left-aligned
+     - **Customer messages:** Dark gradient background (slate-900), right-aligned
+     - **Follow-ups:** Blue gradient background, left-aligned
+   - `ConversationThread` - Groups messages by date with separators
+   - Replaced `dangerouslySetInnerHTML` with structured rendering
+   - **Backward compatible:** Old HTML strings still render via fallback
+
+3. **`src/types/dashboard.ts`** - Added `ConversationMessage` interface
+
+**n8n Aggregation Node:**
+- **Location:** Main aggregation code node (before posting to webhook)
+- **Function:** `parseConversationToStructured(conversationHistory, leadSource)`
+  - Parses old string format into JSON array
+  - Extracts timestamps from delimiter lines (e.g., "Customer Reply - 2025-12-24 03:45 PM")
+  - Cleans customer email signatures/noise (removes `[cid:image...]`, email footers)
+  - Supports ALL old and new delimiters for full backward compatibility
+  - Returns JSON.stringify(ConversationMessage[])
+- **Integration:** One line change in `slimLeads.push()` to call parser on `conversation_history`
+
+**Email Signature Cleaning:**
+Automatically removes from customer messages:
+- Image references: `[cid:image...]`
+- Email footers: Lines starting with `E:`, `M:`, `T:`
+- Excessive whitespace
+
+#### Backward Compatibility
+
+**Dual Format Support:**
+- Frontend detects format (JSON array vs string) automatically
+- Old conversations: Display as plain HTML or parse delimiters
+- New conversations: Beautiful structured message bubbles
+- No data migration required
+- Zero breaking changes
+
+**Migration Strategy:**
+- Week 1: Deploy frontend (supports both formats)
+- Week 2: Update n8n delimiters with timestamps
+- Week 3+: Gradual migration as leads refresh naturally
+- Old data continues working indefinitely
+
+#### Visual Design
+
+**Message Bubble Styling:**
+- Matches KPI card design system (gradients, shadows, rounded corners)
+- Role-based color coding for instant recognition
+- Timestamps in Dubai timezone (GST) using `date-fns-tz`
+- Date separators with horizontal lines
+- Responsive design (adapts to mobile/desktop)
+
+**Color Scheme:**
+- AI: `bg-white dark:bg-slate-950` with `border-slate-200`
+- Customer: `bg-gradient-to-br from-slate-900 to-slate-800` with white text
+- Follow-ups: `bg-gradient-to-br from-blue-50 to-blue-100` with blue accents
+- Timestamps: Muted colors (`text-slate-400`)
+
+#### Critical Files
+
+- **`src/lib/conversation.ts`** - Core parsing logic (NEW)
+- **`src/types/dashboard.ts`** - ConversationMessage interface
+- **`src/components/dashboard/LeadDetail.tsx`** - Message bubble UI
+- **n8n Aggregation Code Node** - Data transformation (manual update)
+
+#### Testing Checklist
+
+- ✅ Legacy HTML format (existing leads)
+- ✅ New JSON format (after n8n update)
+- ✅ Empty conversation_history
+- ✅ Malformed data (fallback gracefully)
+- ✅ Very long conversations (100+ messages)
+- ✅ Dark mode rendering
+- ✅ Mobile responsiveness
+- ✅ Timezone display (Dubai/GST)
+- ✅ Old delimiters with colons (legacy follow-ups)
+- ✅ New delimiters with dashes and timestamps

@@ -2,7 +2,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import type { DashboardSummary } from '@/types/dashboard';
 import {
   Users, TrendingUp, MessageCircle, Target,
-  XCircle, Award, BarChart3, ArrowUpRight, ArrowDownRight
+  XCircle, Award, BarChart3, ArrowUpRight, ArrowDownRight, Globe
 } from 'lucide-react';
 
 interface KPICardsProps {
@@ -106,12 +106,12 @@ export function KPICards({ summary }: KPICardsProps) {
         />
 
         <MetricCard
-          title="Hot Opportunities"
-          value={(summary.hot_leads_count || 0) + (summary.qualified_leads_count || 0)}
-          subtitle={`${summary.hot_leads_count || 0} hot · ${summary.qualified_leads_count || 0} qualified`}
+          title="Qualified Leads"
+          value={summary.qualified_leads_count || 0}
+          subtitle="Ready to convert"
           icon={Target}
           accent="warning"
-          trend="up"
+          trend={(summary.qualified_leads_count || 0) > 0 ? 'up' : undefined}
         />
 
         <MetricCard
@@ -157,7 +157,7 @@ export function KPICards({ summary }: KPICardsProps) {
       </div>
 
       {/* Analytics Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Lead Quality Scores */}
         <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
           <CardContent className="p-5">
@@ -221,7 +221,7 @@ export function KPICards({ summary }: KPICardsProps) {
                 <div className="text-center py-6 text-slate-400">No data available</div>
               )}
 
-              {/* Dead leads */}
+              {/* Dead leads with rate */}
               <div className="flex items-center gap-3 pt-3 mt-3 border-t border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-1.5 w-28">
                   <XCircle className="w-3.5 h-3.5 text-rose-500" />
@@ -233,10 +233,68 @@ export function KPICards({ summary }: KPICardsProps) {
                     style={{ width: `${((summary.dead_leads_count || 0) / maxCount) * 100}%` }}
                   />
                 </div>
-                <span className="text-sm font-medium text-slate-900 dark:text-slate-100 w-8 text-right">
-                  {summary.dead_leads_count || 0}
-                </span>
+                <div className="flex items-baseline gap-1 w-20 justify-end">
+                  <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    {summary.dead_leads_count || 0}
+                  </span>
+                  <span className="text-xs text-rose-500">
+                    ({summary.dead_lead_rate || 0}%)
+                  </span>
+                </div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Country Distribution */}
+        <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2 mb-5">
+              <Globe className="w-4 h-4 text-slate-400" />
+              <h3 className="font-medium text-slate-900 dark:text-slate-100">Regional Distribution</h3>
+            </div>
+
+            <div className="space-y-3">
+              {(() => {
+                const countryData = Object.entries(summary.by_country || {})
+                  .filter(([country]) => country && country !== 'Unknown')
+                  .sort((a, b) => b[1] - a[1])
+                  .slice(0, 6);
+                const maxCountryCount = Math.max(...countryData.map(([, count]) => count), 1);
+
+                return countryData.length > 0 ? (
+                  countryData.map(([country, count]) => (
+                    <div key={country} className="flex items-center gap-3">
+                      <span className="text-sm text-slate-600 dark:text-slate-400 w-20 truncate">{country}</span>
+                      <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-400 dark:bg-blue-500 rounded-full transition-all duration-500"
+                          style={{ width: `${(count / maxCountryCount) * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-sm font-medium text-slate-900 dark:text-slate-100 w-8 text-right">{count}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-6 text-slate-400">No data available</div>
+                );
+              })()}
+
+              {/* Unknown count if exists */}
+              {(summary.by_country?.Unknown || 0) > 0 && (
+                <div className="flex items-center gap-3 pt-3 mt-3 border-t border-slate-100 dark:border-slate-800">
+                  <span className="text-sm text-slate-400 dark:text-slate-500 w-20">Unknown</span>
+                  <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-slate-300 dark:bg-slate-600 rounded-full transition-all duration-500"
+                      style={{ width: `${((summary.by_country?.Unknown || 0) / Math.max(...Object.values(summary.by_country || {}), 1)) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium text-slate-500 dark:text-slate-400 w-8 text-right">
+                    {summary.by_country?.Unknown || 0}
+                  </span>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
