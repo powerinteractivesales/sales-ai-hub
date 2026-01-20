@@ -19,12 +19,14 @@ const TEAM_MEMBERS = [
 interface AssignmentDropdownProps {
   currentAssignee: string | null | undefined;
   webhookUrl: string | undefined;
+  masterStatus?: string;
   onAssignmentSuccess?: (newAssignee: string) => void;
 }
 
 export function AssignmentDropdown({
   currentAssignee,
   webhookUrl,
+  masterStatus,
   onAssignmentSuccess,
 }: AssignmentDropdownProps) {
   const [isLoading, setIsLoading] = useState(false);
@@ -47,7 +49,7 @@ export function AssignmentDropdown({
     setIsOpen(false);
 
     try {
-      const url = `${webhookUrl}&assignee=${encodeURIComponent(assignee)}`;
+      const url = `${webhookUrl}&assignee=${encodeURIComponent(assignee)}&master_status=${encodeURIComponent(masterStatus || '')}`;
       const response = await fetch(url, { method: 'GET' });
 
       if (!response.ok) {

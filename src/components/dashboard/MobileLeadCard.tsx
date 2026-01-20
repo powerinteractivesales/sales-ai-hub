@@ -4,6 +4,7 @@ import { AssignmentDropdown } from './AssignmentDropdown';
 import type { LeadRow } from '@/types/dashboard';
 import { formatInDubaiTime } from '@/lib/timezone';
 import { cn } from '@/lib/utils';
+import { UserCheck } from 'lucide-react';
 
 interface MobileLeadCardProps {
   lead: LeadRow;
@@ -16,7 +17,23 @@ const masterStatusColors: Record<string, string> = {
   'Cold Lead': 'bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-400',
   'Qualified Lead': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
   'Hot Lead': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+  'Dead Lead': 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400',
+  'Partially Dead Lead': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+  'Validate Lead': 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400',
+  'Dead Lead - Assigned': 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400',
+  'Partially Dead - Assigned': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+  'Validate Lead - Assigned': 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400',
+  'Qualified Lead - Assigned': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
 };
+
+// Helper to get display status and check if assigned
+function getStatusDisplay(status: string) {
+  const isAssigned = status.endsWith(' - Assigned');
+  const baseStatus = isAssigned ? status.replace(/ - Assigned$/, '') : status;
+  // Handle "Partially Dead" → "Partially Dead Lead" for color lookup
+  const colorKey = baseStatus === 'Partially Dead' ? 'Partially Dead Lead' : baseStatus;
+  return { baseStatus, isAssigned, colorKey };
+}
 
 export function MobileLeadCard({ lead, isSelected, onClick }: MobileLeadCardProps) {
   return (
@@ -39,6 +56,7 @@ export function MobileLeadCard({ lead, isSelected, onClick }: MobileLeadCardProp
               <AssignmentDropdown
                 currentAssignee={lead.assigned_to}
                 webhookUrl={lead.assign_webhook_url}
+                masterStatus={lead.master_status}
               />
             </div>
           </div>
@@ -51,12 +69,18 @@ export function MobileLeadCard({ lead, isSelected, onClick }: MobileLeadCardProp
         </div>
 
         <div className="flex items-center gap-2 mt-3">
-          <Badge
-            variant="secondary"
-            className={masterStatusColors[lead.master_status] || ''}
-          >
-            {lead.master_status}
-          </Badge>
+          {(() => {
+            const { baseStatus, isAssigned, colorKey } = getStatusDisplay(lead.master_status || '');
+            return (
+              <Badge
+                variant="secondary"
+                className={masterStatusColors[colorKey] || ''}
+              >
+                {baseStatus}
+                {isAssigned && <UserCheck className="w-3 h-3 ml-1 inline" />}
+              </Badge>
+            );
+          })()}
           <Badge variant="outline" className="text-xs">
             {lead.status}
           </Badge>

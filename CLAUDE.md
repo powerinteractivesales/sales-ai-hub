@@ -681,3 +681,23 @@ Automatically removes from customer messages:
 - ✅ Timezone display (Dubai/GST)
 - ✅ Old delimiters with colons (legacy follow-ups)
 - ✅ New delimiters with dashes and timestamps
+
+### Lead Assignment Status Handling (Jan 20, 2026)
+
+**Problem:** Assigning dead/partially dead leads incorrectly changed them to "Qualified Lead".
+
+**Solution:**
+1. **AssignmentDropdown** now sends `master_status` to webhook: `{webhookUrl}&assignee={name}&master_status={status}`
+2. **n8n** routes based on status → appends "- Assigned" suffix (e.g., "Dead Lead - Assigned")
+3. **KPICards Pipeline Distribution** normalizes statuses by stripping "- Assigned" to combine counts
+
+**Master Status Assigned Variants:**
+- Dead Lead → Dead Lead - Assigned
+- Partially Dead Lead → Partially Dead - Assigned
+- Validate Lead → Validate Lead - Assigned
+- Qualified Lead → Qualified Lead - Assigned
+
+**Files Changed:**
+- `src/components/dashboard/AssignmentDropdown.tsx` - added `masterStatus` prop
+- `src/components/dashboard/KPICards.tsx` - normalizes "- Assigned" statuses
+- `LeadTable.tsx`, `MobileLeadCard.tsx` - pass `masterStatus` to dropdown

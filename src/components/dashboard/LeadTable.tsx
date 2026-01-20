@@ -5,7 +5,7 @@ import { AssignmentDropdown } from './AssignmentDropdown';
 import type { LeadRow } from '@/types/dashboard';
 import { formatInDubaiTime } from '@/lib/timezone';
 import { cn } from '@/lib/utils';
-import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, UserCheck } from 'lucide-react';
 
 type SortField = 'last_contact' | 'next_followup' | 'score' | 'name' | 'assigned_to' | 'created';
 type SortDirection = 'asc' | 'desc';
@@ -25,7 +25,23 @@ const masterStatusColors: Record<string, string> = {
   'Cold Lead': 'bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-400',
   'Qualified Lead': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
   'Hot Lead': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+  'Dead Lead': 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400',
+  'Partially Dead Lead': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+  'Validate Lead': 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400',
+  'Dead Lead - Assigned': 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400',
+  'Partially Dead - Assigned': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+  'Validate Lead - Assigned': 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400',
+  'Qualified Lead - Assigned': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
 };
+
+// Helper to get display status and check if assigned
+function getStatusDisplay(status: string) {
+  const isAssigned = status.endsWith(' - Assigned');
+  const baseStatus = isAssigned ? status.replace(/ - Assigned$/, '') : status;
+  // Handle "Partially Dead" → "Partially Dead Lead" for color lookup
+  const colorKey = baseStatus === 'Partially Dead' ? 'Partially Dead Lead' : baseStatus;
+  return { baseStatus, isAssigned, colorKey };
+}
 
 function TableSkeleton() {
   return (
@@ -176,17 +192,24 @@ export function LeadTable({ leads, selectedLeadId, onSelectLead, isLoading, sort
                   <TableCell>{lead.country || '—'}</TableCell>
                   <TableCell>{lead.status || '—'}</TableCell>
                   <TableCell>
-                    <Badge
-                      variant="secondary"
-                      className={`text-sm font-medium px-2 py-0.5 ${masterStatusColors[lead.master_status] || 'bg-secondary text-secondary-foreground'}`}
-                    >
-                      {lead.master_status || '—'}
-                    </Badge>
+                    {(() => {
+                      const { baseStatus, isAssigned, colorKey } = getStatusDisplay(lead.master_status || '');
+                      return (
+                        <Badge
+                          variant="secondary"
+                          className={`text-sm font-medium px-2 py-0.5 whitespace-nowrap ${masterStatusColors[colorKey] || 'bg-secondary text-secondary-foreground'}`}
+                        >
+                          {baseStatus || '—'}
+                          {isAssigned && <UserCheck className="w-3 h-3 ml-1 inline" />}
+                        </Badge>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell>
                     <AssignmentDropdown
                       currentAssignee={lead.assigned_to}
                       webhookUrl={lead.assign_webhook_url}
+                      masterStatus={lead.master_status}
                     />
                   </TableCell>
                   <TableCell className="text-muted-foreground whitespace-nowrap">

@@ -89,7 +89,18 @@ function ActivityCard({
 }
 
 export function KPICards({ summary }: KPICardsProps) {
-  const pipelineData = Object.entries(summary.by_master_status)
+  // Normalize master_status by stripping " - Assigned" suffix and combining counts
+  const normalizedStatusCounts: Record<string, number> = {};
+  Object.entries(summary.by_master_status).forEach(([status, count]) => {
+    let baseStatus = status.replace(/ - Assigned$/, '');
+    // Handle "Partially Dead - Assigned" → "Partially Dead Lead"
+    if (baseStatus === 'Partially Dead') {
+      baseStatus = 'Partially Dead Lead';
+    }
+    normalizedStatusCounts[baseStatus] = (normalizedStatusCounts[baseStatus] || 0) + count;
+  });
+
+  const pipelineData = Object.entries(normalizedStatusCounts)
     .sort((a, b) => b[1] - a[1]);
 
   const maxCount = Math.max(...pipelineData.map(([, count]) => count), 1);

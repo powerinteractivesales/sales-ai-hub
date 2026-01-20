@@ -101,11 +101,12 @@ function parseStringFormat(conversationHistory: string): ConversationMessage[] {
       let extractedTimestamp = null;
 
       // First, try to find timestamp in the current delimiter part
-      let timestampMatch = part.match(/(\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}\s+[AP]M)/i);
+      // Note: Month and day can be 1 or 2 digits (e.g., 2026-1-01 or 2026-01-01)
+      let timestampMatch = part.match(/(\d{4}-\d{1,2}-\d{1,2}\s+\d{1,2}:\d{2}\s+[AP]M)/i);
 
       // If not found, check the next part (timestamp might be after delimiter)
       if (!timestampMatch && i + 1 < parts.length) {
-        timestampMatch = parts[i + 1].match(/(\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}\s+[AP]M)/i);
+        timestampMatch = parts[i + 1].match(/(\d{4}-\d{1,2}-\d{1,2}\s+\d{1,2}:\d{2}\s+[AP]M)/i);
       }
 
       if (timestampMatch) {
@@ -132,7 +133,8 @@ function parseStringFormat(conversationHistory: string): ConversationMessage[] {
       let content = part.trim();
 
       // Remove timestamp from content if present (it's already extracted to the message timestamp)
-      content = content.replace(/^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}\s+[AP]M\s*/i, '');
+      // Note: Month and day can be 1 or 2 digits (e.g., 2026-1-01 or 2026-01-01)
+      content = content.replace(/^\d{4}-\d{1,2}-\d{1,2}\s+\d{1,2}:\d{2}\s+[AP]M\s*/i, '');
 
       if (content) {
         // Clean customer replies (remove email signatures)
